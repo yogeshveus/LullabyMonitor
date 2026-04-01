@@ -118,7 +118,7 @@
         <div class="controls">
             <button id="toggleCameraBtn">Turn Off Camera</button>
             <button id="toggleAudioBtn">Mute Microphone</button>
-            <button id="recordBtn">Start Recording 5 Seconds</button>
+            <button id="recordBtn">Start Recording 60 Seconds</button>
         </div>
 
         <div id="alertText"></div>
@@ -206,7 +206,7 @@
             setTimeout(() => {
                 mediaRecorder.stop();
                 recordBtn.disabled = false;
-            }, 5000);
+            }, 60000);
         };
     </script>
 </body>
