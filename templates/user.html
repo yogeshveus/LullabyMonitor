@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baby Monitor Recorder</title>
+    <title>Baby Monitor</title>
     <style>
         /* General page style */
         body {
@@ -110,7 +110,7 @@
 </head>
 
 <body>
-    <h2>Baby Monitor Recorder</h2>
+    <h2>Baby Monitor</h2>
 
     <div class="recorder-container">
         <video id="preview" autoplay muted></video>
@@ -118,7 +118,7 @@
         <div class="controls">
             <button id="toggleCameraBtn">Turn Off Camera</button>
             <button id="toggleAudioBtn">Mute Microphone</button>
-            <button id="recordBtn">Start Recording 60 Seconds</button>
+            <button id="recordBtn">Start Recording Audio</button>
         </div>
 
         <div id="alertText"></div>
@@ -133,7 +133,9 @@
         const toggleCameraBtn = document.getElementById('toggleCameraBtn');
         const toggleAudioBtn = document.getElementById('toggleAudioBtn');
         const alertText = document.getElementById('alertText');
-
+        let monitoring = false;
+        let audioCount = 1;
+        let intervalId;
         let mediaRecorder;
         let recordedChunks = [];
         let stream;
@@ -146,22 +148,22 @@
                 stream = s;
                 preview.srcObject = stream;
 
-                mediaRecorder = new MediaRecorder(stream);
+                const audioStream = new MediaStream(stream.getAudioTracks());
+                mediaRecorder = new MediaRecorder(audioStream);
 
                 mediaRecorder.ondataavailable = e => {
                     if (e.data.size > 0) recordedChunks.push(e.data);
                 };
 
                 mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     recordedChunks = [];
 
                     const formData = new FormData();
-                    formData.append('file', blob, 'recording.webm');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    formData.append('file', blob, `audio_${timestamp}.webm`);
 
                     fetch('/upload', { method: 'POST', body: formData })
-                        .then(res => res.text())
-                        .then(data => alert('Upload complete: ' + data))
                         .catch(err => console.error(err));
                 };
             })
@@ -186,27 +188,40 @@
             toggleAudioBtn.textContent = audioOn ? "Mute Microphone" : "Unmute Microphone";
         };
 
-        // Start Recording
-        recordBtn.onclick = () => {
-            if (!mediaRecorder) return;
 
-            if (!cameraOn) {
-                alertText.textContent = "Cannot record: Camera is turned off!";
+        function recordSixSeconds() {
+            if (!mediaRecorder || !audioOn) {
+                alertText.textContent = "Microphone is muted or unavailable!";
                 return;
             }
 
-            if (!audioOn) {
-                alertText.textContent = "Cannot record: Microphone is muted!";
-                return;
-            }
-
-            alertText.textContent = "";
+            alertText.textContent = "Recording 6 seconds...";
             mediaRecorder.start();
-            recordBtn.disabled = true;
+
             setTimeout(() => {
                 mediaRecorder.stop();
-                recordBtn.disabled = false;
-            }, 60000);
+                alertText.textContent = "Waiting for next cycle...";
+            }, 7000);
+        }
+
+        recordBtn.onclick = () => {
+            if (!monitoring) {
+                monitoring = true;
+                recordBtn.textContent = "Stop Monitoring";
+
+                recordSixSeconds(); // run immediately
+
+                intervalId = setInterval(() => {
+                    recordSixSeconds();
+                }, 60000);
+
+            } else {
+                monitoring = false;
+                recordBtn.textContent = "Start Monitoring";
+
+                clearInterval(intervalId);
+                alertText.textContent = "Monitoring stopped.";
+            }
         };
     </script>
 </body>
