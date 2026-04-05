@@ -6,11 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Baby Monitor</title>
     <style>
-        /* General page style */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #fef8f2;
-            /* soft cream */
             color: #444;
             display: flex;
             flex-direction: column;
@@ -20,13 +18,11 @@
 
         h2 {
             color: #6c5b7b;
-            /* soft purple */
             margin-bottom: 30px;
             text-align: center;
         }
 
-        /* Video preview */
-        video {
+        img {
             width: 480px;
             max-width: 90%;
             height: 360px;
@@ -34,11 +30,10 @@
             border: 2px solid #d3c0f0;
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
             background-color: #e8eaf6;
-            /* soft light blue when off */
             margin-bottom: 20px;
+            object-fit: cover;
         }
 
-        /* Buttons container */
         .controls {
             display: flex;
             flex-wrap: wrap;
@@ -47,10 +42,8 @@
             margin-bottom: 20px;
         }
 
-        /* Buttons style */
         button {
             background-color: #c1e1c1;
-            /* mild green */
             color: #444;
             border: none;
             border-radius: 8px;
@@ -66,24 +59,13 @@
             transform: translateY(-2px);
         }
 
-        button:disabled {
-            background-color: #e0e0e0;
-            cursor: not-allowed;
-            color: #999;
-            box-shadow: none;
-            transform: none;
-        }
-
-        /* Alert text */
         #alertText {
             color: #c94c4c;
-            /* mild red */
             font-weight: bold;
             margin-top: 10px;
             min-height: 20px;
         }
 
-        /* Container styling */
         .recorder-container {
             background-color: #fffdf8;
             padding: 30px 25px;
@@ -113,116 +95,36 @@
     <h2>Baby Monitor</h2>
 
     <div class="recorder-container">
-        <video id="preview" autoplay muted></video>
+        <img id="videoFeed" src="/video_feed" alt="Live Camera Feed">
 
         <div class="controls">
-            <button id="toggleCameraBtn">Turn Off Camera</button>
-            <button id="toggleAudioBtn">Mute Microphone</button>
-            <button id="recordBtn">Start Recording Audio</button>
+            <button onclick="sendCommand('/toggle_camera')">Turn Camera On/Off</button>
+            <button onclick="sendCommand('/toggle_audio')">Mute/Unmute Mic</button>
+            <button onclick="sendCommand('/start_monitoring')">Start Monitoring</button>
+            <button onclick="sendCommand('/stop_monitoring')">Stop Monitoring</button>
         </div>
 
         <div id="alertText"></div>
+
         <div class="controls">
             <a href="{{ url_for('auth.logout') }}">Logout</a>
         </div>
     </div>
 
     <script>
-        const preview = document.getElementById('preview');
-        const recordBtn = document.getElementById('recordBtn');
-        const toggleCameraBtn = document.getElementById('toggleCameraBtn');
-        const toggleAudioBtn = document.getElementById('toggleAudioBtn');
         const alertText = document.getElementById('alertText');
-        let monitoring = false;
-        let audioCount = 1;
-        let intervalId;
-        let mediaRecorder;
-        let recordedChunks = [];
-        let stream;
-        let cameraOn = true;
-        let audioOn = true;
 
-        // Access camera and microphone
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(s => {
-                stream = s;
-                preview.srcObject = stream;
-
-                const audioStream = new MediaStream(stream.getAudioTracks());
-                mediaRecorder = new MediaRecorder(audioStream);
-
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) recordedChunks.push(e.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    recordedChunks = [];
-
-                    const formData = new FormData();
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    formData.append('file', blob, `audio_${timestamp}.webm`);
-
-                    fetch('/upload', { method: 'POST', body: formData })
-                        .catch(err => console.error(err));
-                };
-            })
-            .catch(err => {
-                console.error('Error accessing media devices:', err);
-                alert('Could not access camera or microphone.');
-            });
-
-        // Toggle Camera
-        toggleCameraBtn.onclick = () => {
-            if (!stream) return;
-            cameraOn = !cameraOn;
-            stream.getVideoTracks().forEach(track => track.enabled = cameraOn);
-            toggleCameraBtn.textContent = cameraOn ? "Turn Off Camera" : "Turn On Camera";
-        };
-
-        // Toggle Audio
-        toggleAudioBtn.onclick = () => {
-            if (!stream) return;
-            audioOn = !audioOn;
-            stream.getAudioTracks().forEach(track => track.enabled = audioOn);
-            toggleAudioBtn.textContent = audioOn ? "Mute Microphone" : "Unmute Microphone";
-        };
-
-
-        function recordSixSeconds() {
-            if (!mediaRecorder || !audioOn) {
-                alertText.textContent = "Microphone is muted or unavailable!";
-                return;
-            }
-
-            alertText.textContent = "Recording 6 seconds...";
-            mediaRecorder.start();
-
-            setTimeout(() => {
-                mediaRecorder.stop();
-                alertText.textContent = "Waiting for next cycle...";
-            }, 7000);
+        function sendCommand(route) {
+            fetch(route, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alertText.textContent = data.message;
+                })
+                .catch(error => {
+                    console.error(error);
+                    alertText.textContent = "Error communicating with server.";
+                });
         }
-
-        recordBtn.onclick = () => {
-            if (!monitoring) {
-                monitoring = true;
-                recordBtn.textContent = "Stop Monitoring";
-
-                recordSixSeconds(); // run immediately
-
-                intervalId = setInterval(() => {
-                    recordSixSeconds();
-                }, 60000);
-
-            } else {
-                monitoring = false;
-                recordBtn.textContent = "Start Monitoring";
-
-                clearInterval(intervalId);
-                alertText.textContent = "Monitoring stopped.";
-            }
-        };
     </script>
 </body>
 

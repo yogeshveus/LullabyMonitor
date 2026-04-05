@@ -3,6 +3,7 @@ from config import SECRET_KEY
 from database.db import init_db
 from routes.auth_routes import auth
 from routes.user_routes import user
+from routes.monitor_routes import monitor
 
 
 def create_app():
@@ -11,6 +12,7 @@ def create_app():
 
     app.register_blueprint(auth)
     app.register_blueprint(user)
+    app.register_blueprint(monitor)
 
     init_db()
 
