@@ -4,7 +4,7 @@ from database.db import init_db
 from routes.auth_routes import auth
 from routes.user_routes import user
 from routes.monitor_routes import monitor
-
+from routes.recordings_routes import recordings
 
 def create_app():
     app = Flask(__name__)
@@ -13,6 +13,8 @@ def create_app():
     app.register_blueprint(auth)
     app.register_blueprint(user)
     app.register_blueprint(monitor)
+    app.register_blueprint(recordings)
+    
 
     init_db()
 
